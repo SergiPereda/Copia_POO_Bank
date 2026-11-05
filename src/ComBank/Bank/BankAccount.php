@@ -18,6 +18,67 @@ use ComBank\OverdraftStrategy\Contracts\OverdraftInterface;
 use ComBank\Support\Traits\AmountValidationTrait;
 use ComBank\Transactions\Contracts\BankTransactionInterface;
 
-class BankAccount
-{
+class BankAccount implements BankAccountInterface {
+    use AmountValidationTrait;
+
+    private float $balance;
+    private string $status;
+    private OverdraftInterface $overdraft;
+
+    public function __construct(float $balance) {
+        $this->validateAmount($balance);
+        $this->balance = $balance;
+        $this->status = self::STATUS_OPEN;
+        $this->overdraft = new NoOverdraft();
+
     }
+
+
+    public function transaction(BankTransactionInterface $bankTransaction): void {
+        if (!$this->isOpen()) {
+            throw new BankAccountException('Account is closed');
+        }
+        try {
+            $newBalance = $bankTransaction->applyTransaction($this);
+            $this->setBalance($newBalance);
+        } catch (InvalidOverdraftFundsException $ex){
+            throw new FailedTransactionException($ex->getMessage());
+        }
+        
+    }
+
+    public function isOpen(): bool {
+        return $this->status === self::STATUS_OPEN;
+    }
+
+    public function reopenAccount(): void {
+        if ($this->isOpen()) {
+            throw new BankAccountException("Account is already open.");
+        }
+        $this->status = self::STATUS_OPEN;
+    }
+    public function closeAccount(): void {
+        if (!$this->isOpen()) {
+            throw new BankAccountException("Account is already closed.");
+        }
+        $this->status = self::STATUS_CLOSED;
+    }
+
+    public function getBalance(): float {
+        return $this->balance;
+    }
+    public function setBalance(float $balance): void {
+        $this->balance = $balance;
+    }
+
+
+    public function getOverdraft(): OverdraftInterface {
+        return $this->overdraft;
+    }
+
+    public function applyOverdraft(OverdraftInterface $overdraft): void {
+        $this->overdraft = $overdraft;
+    }
+
+
+}

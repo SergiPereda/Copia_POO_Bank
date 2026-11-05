@@ -23,4 +23,10 @@ trait AmountValidationTrait
         }
         
     }
+
+    private function validateEmail(string $email): void {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgsException('Invalid email format');
+        }
+    }
 }
